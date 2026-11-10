@@ -61,8 +61,8 @@ export default Plugin.define({
       name: string,
     ): Promise<{ found: boolean; raw: any }> => {
       const out: any = await ctx.mcp.list()
-      const servers: any[] = out?.servers ?? out ?? []
-      const entry = servers.find((s: any) => s?.name === name || s?.server === name)
+      const servers: any[] = out?.data ?? (Array.isArray(out) ? out : [])
+      const entry = servers.find((s: any) => s?.name === name)
       return { found: !!entry, raw: entry }
     }
 
@@ -176,15 +176,16 @@ export default Plugin.define({
         options: { namespace: "mcp" },
         execute: async () => {
           const out: any = await ctx.mcp.list()
-          const servers: any[] = out?.servers ?? out ?? []
+          const servers: any[] = out?.data ?? (Array.isArray(out) ? out : [])
           const lines = servers.map((s: any) => {
-            const name = s?.name ?? s?.server ?? "?"
+            const name = s?.name ?? "?"
             const lazy = isLazy(name)
+            const err = s?.status?.error ? ` — ${String(s.status.error).slice(0, 120)}` : ""
             const idleMin = loaded.has(name)
               ? Math.round((Date.now() - loaded.get(name)!.lastUsed) / 60_000)
               : null
-            return `- ${name}: ${anyStatusString(s)}${
-              lazy ? ` [lazy${loaded.has(name) ? ` loaded, idle ${idleMin} min` : ""}]` : " [always-on]"
+            return `- ${name}: ${anyStatusString(s)}${err}${
+              lazy ? ` [lazy${loaded.has(name) ? `, loaded, idle ${idleMin} min` : ""}]` : " [always-on]"
             }`
           })
           return {
